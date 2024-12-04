@@ -29,6 +29,7 @@ strings.o: strings.c strings.h
 
 aoc_input.o: aoc_input.c aoc_input.h
 
+.PHONY: clean
 clean:
 	rm -f *.o
 	rm -f day1 day2 day3 day4
