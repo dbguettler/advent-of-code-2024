@@ -1,0 +1,4 @@
+inputs/*.txt
+*.o
+day*
+!day*.c
