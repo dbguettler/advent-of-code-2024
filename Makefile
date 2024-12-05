@@ -3,6 +3,11 @@ CC = gcc
 
 all: day1 day2 day3 day4
 
+day5: day5.o aoc_input.o list.o strings.o
+	$(CC) day5.o aoc_input.o list.o strings.o -o day5
+	
+day5.o: day5.c list.h strings.h aoc_input.h
+
 day4: day4.o aoc_input.o list.o strings.o
 	$(CC) day4.o aoc_input.o list.o strings.o -o day4
 	
