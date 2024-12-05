@@ -4,12 +4,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-int comparison(const void * a, const void * b) {
-  int * num_a = (int*) a;
-  int * num_b = (int*) b;
-  return (*num_a - *num_b);
-}
-
 void part1() {
   List * file_lines = get_lines("inputs/day2.txt");
 

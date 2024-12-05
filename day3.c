@@ -6,12 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-int comparison(const void *a, const void *b) {
-  int *num_a = (int *)a;
-  int *num_b = (int *)b;
-  return (*num_a - *num_b);
-}
-
 enum state {
   AWAIT_M_OR_D,
   FOUND_M,
