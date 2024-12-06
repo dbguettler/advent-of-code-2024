@@ -2,3 +2,4 @@ inputs/*.txt
 *.o
 day*
 !day*.c
+!day*.c.bak
