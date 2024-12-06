@@ -1,33 +1,14 @@
 #include "aoc_input.h"
-#include "hashmap.h"
 #include "list.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct hashmap HashMap;
-typedef enum direction_enum { UP, DOWN, LEFT, RIGHT } direction;
-typedef struct position_struct {
-  int coords[2];
-  direction dir;
-} Position;
-
-uint64_t position_hash(const void *elem, uint64_t seed0, uint64_t seed1) {
-  const Position *pos = elem;
-  return hashmap_sip(pos->coords, (sizeof(int) * 2) + sizeof(direction), seed0,
-                     seed1);
-}
-
-int position_compare(const void *a, const void *b, void *other) {
-  const Position *pos_a = a;
-  const Position *pos_b = b;
-  if (pos_a->coords[0] != pos_b->coords[0]) {
-    return pos_a->coords[0] - pos_b->coords[0];
-  } else if (pos_a->coords[1] != pos_b->coords[1]) {
-    return pos_a->coords[1] - pos_b->coords[1];
-  }
-  return pos_a->dir - pos_b->dir;
-}
+#define UP 0x1
+#define DOWN 0x2
+#define LEFT 0x4
+#define RIGHT 0x8
 
 void part1() {
   List *file_lines = get_lines("inputs/day6.txt");
@@ -40,9 +21,9 @@ void part1() {
   int width = strlen(file_lines->data[0]);
   int height = file_lines->len;
   int guard_pos[2] = {-1, -1};
-  direction dir = UP;
-  HashMap *positions = hashmap_new(sizeof(Position), 0, rand(), rand(),
-                                   position_hash, position_compare, NULL, NULL);
+  uint8_t dir = UP;
+  uint8_t positions[height][width];
+  memset(positions, 0x0, height * width);
 
   // Find starting position of guard
   for (int i = 0; i < height; i++) {
@@ -63,8 +44,7 @@ void part1() {
          guard_pos[1] < width) {
     // For part 1, always set direction to UP since we don't care about which
     // direction the guard is facing at a position
-    hashmap_set(positions,
-                &(Position){.coords = {guard_pos[0], guard_pos[1]}, .dir = UP});
+    positions[guard_pos[0]][guard_pos[1]] = UP;
     switch (dir) {
     case UP:
       if (guard_pos[0] != 0 &&
@@ -104,8 +84,15 @@ void part1() {
     }
   }
 
-  printf("Unique positions: %lu\n", hashmap_count(positions));
-  hashmap_free(positions);
+  int count = 0;
+  for (int i = 0; i < height; i++) {
+    for (int j = 0; j < width; j++) {
+      if (positions[i][j]) {
+        count++;
+      }
+    }
+  }
+  printf("Unique positions: %d\n", count);
   list_destroy(file_lines);
 }
 
@@ -122,9 +109,10 @@ void part2() {
   int guard_pos[2] = {-1, -1};
   int start_pos[2];
   int blank_pos[2] = {-1, -1};
-  direction dir = UP;
-  HashMap *positions = hashmap_new(sizeof(Position), width * height * 4, rand(), rand(),
-                                   position_hash, position_compare, NULL, NULL);
+
+  uint8_t dir = UP;
+  uint8_t positions[height][width];
+  memset(positions, 0x0, height * width);
 
   // Find starting position of guard
   for (int i = 0; i < height; i++) {
@@ -167,15 +155,14 @@ void part2() {
 
       while (guard_pos[0] >= 0 && guard_pos[0] < height && guard_pos[1] >= 0 &&
              guard_pos[1] < width) {
-        if (hashmap_get(positions,
-                        &(Position){.coords = {guard_pos[0], guard_pos[1]},
-                                    .dir = dir}) != NULL) {
+
+        if (positions[guard_pos[0]][guard_pos[1]] & dir) {
           loop_count++;
           break;
         }
-        hashmap_set(
-            positions,
-            &(Position){.coords = {guard_pos[0], guard_pos[1]}, .dir = dir});
+        positions[guard_pos[0]][guard_pos[1]] =
+            positions[guard_pos[0]][guard_pos[1]] | dir;
+
         switch (dir) {
         case UP:
           if (guard_pos[0] != 0 &&
@@ -222,16 +209,16 @@ void part2() {
       blank_pos[1] += 1;
       guard_pos[0] = start_pos[0];
       guard_pos[1] = start_pos[1];
-      hashmap_clear(positions, false);
+      // hashmap_clear(positions, false);
+      memset(positions, 0x0, height * width);
       dir = UP;
     } // end blank pos width loop
     blank_pos[1] = 0;
     blank_pos[0] += 1;
-    // printf("%d/%d\n", blank_pos[0], height);
   } // end blank pos height loop
 
   printf("Number of loops: %d\n", loop_count);
-  hashmap_free(positions);
+  // hashmap_free(positions);
   list_destroy(file_lines);
 }
 
