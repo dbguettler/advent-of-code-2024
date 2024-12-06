@@ -3,3 +3,4 @@ inputs/*.txt
 day*
 !day*.c
 !day*.c.bak
+vgcore.*

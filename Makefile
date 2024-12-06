@@ -1,7 +1,12 @@
 CFLAGS = -Wall -std=c99
 CC = gcc
 
-all: day1 day2 day3 day4 day5
+all: day1 day2 day3 day4 day5 day6
+
+day6: day6.o aoc_input.o list.o strings.o hashmap.o
+	$(CC) day6.o aoc_input.o list.o strings.o hashmap.o -o day6
+	
+day6.o: day6.c list.h strings.h aoc_input.h
 
 day5: day5.o aoc_input.o list.o strings.o hashmap.o
 	$(CC) day5.o aoc_input.o list.o strings.o hashmap.o -o day5
@@ -39,4 +44,4 @@ aoc_input.o: aoc_input.c aoc_input.h
 .PHONY: clean
 clean:
 	rm -f *.o
-	rm -f day1 day2 day3 day4 day5
+	rm -f day1 day2 day3 day4 day5 day6
