@@ -1,11 +1,29 @@
 #include "aoc_input.h"
 #include "list.h"
+#include "map.h"
 #include "strings.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-void part1() {
+int compare_rules(const void *a, const void *b) {
+  int *arr_a = (int *)a;
+  int *arr_b = (int *)b;
+
+  if (arr_a[0] != arr_b[0]) {
+    return arr_a[0] - arr_b[0];
+  } else {
+    return arr_a[1] - arr_b[1];
+  }
+}
+
+int compare_nums(const void *a, const void *b) {
+  int *num_a = (int *)a;
+  int *num_b = (int *)b;
+  return *num_a - *num_b;
+}
+
+void parts_1_and_2() {
   // Read in file
   List *file_lines = get_lines("inputs/day5.txt");
 
@@ -110,6 +128,153 @@ void part1() {
 
   printf("Sum: %d\n", sum);
 
+  //////////////////////// Part 2 ////////////////////////
+  sum = 0;
+
+  // Iterate over all updates
+  for (int u = 0; u < updates->len; u++) {
+    List *update = (List *)updates->data[u];
+    // Rules represent edges in a directed graph of numbers in the update. The
+    // map stores which edges are in the graph
+    Map *rule_map = map_create(compare_rules);
+
+    // Add edges for all rules where both numbers are in the update
+    for (int r = 0; r < ordering_rules->len; r++) {
+      int first = ((int *)ordering_rules->data[r])[0];
+      int second = ((int *)ordering_rules->data[r])[1];
+
+      // Check first number in rule
+      bool first_in_update = false;
+      for (int i = 0; i < update->len; i++) {
+        if (*((int *)update->data[i]) == first) {
+          first_in_update = true;
+          break;
+        }
+      }
+      if (!first_in_update) {
+        continue;
+      }
+
+      // Check second number in rule
+      bool second_in_update = false;
+      for (int i = 0; i < update->len; i++) {
+        if (*((int *)update->data[i]) == second) {
+          second_in_update = true;
+          break;
+        }
+      }
+      if (!second_in_update) {
+        continue;
+      }
+
+      // Both are in, so add to the map.
+      int *key = (int *)malloc(sizeof(int) * 2);
+      key[0] = first;
+      key[1] = second;
+      bool *val = (bool *)malloc(sizeof(bool));
+      *val = true;
+      map_insert(rule_map, key, val);
+    } // end loop over rules
+
+    // Use Warshall's Algorithm to compute the transitive closure of the graph
+    // For more info: https://cs.winona.edu/lin/cs440/ch08-2.pdf
+    for (int k = 0; k < update->len; k++) {
+      for (int i = 0; i < update->len; i++) {
+        for (int j = 0; j < update->len; j++) {
+          // If the map contains a boolean value for the edge, use that.
+          // Otherwise, treat it as false.
+          int rule_ij[2] = {*((int *)update->data[i]),
+                            *((int *)update->data[j])};
+          int rule_ik[2] = {*((int *)update->data[i]),
+                            *((int *)update->data[k])};
+          int rule_kj[2] = {*((int *)update->data[k]),
+                            *((int *)update->data[j])};
+          bool *ij_bool_ptr;
+          bool ik_bool;
+          bool kj_bool;
+
+          if (map_contains(rule_map, rule_ik)) {
+            ik_bool = *((bool *)map_get(rule_map, rule_ik));
+          } else {
+            ik_bool = false;
+          }
+
+          if (map_contains(rule_map, rule_kj)) {
+            kj_bool = *((bool *)map_get(rule_map, rule_kj));
+          } else {
+            kj_bool = false;
+          }
+
+          if (map_contains(rule_map, rule_ij)) {
+            ij_bool_ptr = (bool *)map_get(rule_map, rule_ij);
+            *ij_bool_ptr = *ij_bool_ptr || (ik_bool && kj_bool);
+            // Not need to do an insert/update, this updates the bool directly
+          } else {
+            ij_bool_ptr = (bool *)malloc(sizeof(bool));
+            *ij_bool_ptr = ik_bool && kj_bool;
+            int *key = (int *)malloc(sizeof(int) * 2);
+            key[0] = rule_ij[0];
+            key[1] = rule_ij[1];
+            map_insert(rule_map, key, ij_bool_ptr);
+          }
+        }
+      }
+    } // end Warshall Algorithm loop
+
+    Map *number_count = map_create(compare_nums);
+
+    // Now create a mapping for each number in the closure of the rules (or
+    // equivalently, each number in the update list). Subtract one from its
+    // value for being the first number of a rule, and add one for being the
+    // last number of a rule.
+    for (int i = 0; i < rule_map->list->len; i++) {
+      KeyVal *rule_keyval = (KeyVal *)rule_map->list->data[i];
+      int *rule_key = (int *)rule_keyval->key;
+      bool *rule_val = (bool *)rule_keyval->val;
+
+      if (*rule_val) {
+        if (map_contains(number_count, rule_key + 0)) {
+          int *val = map_get(number_count, rule_key + 0);
+          *val = *val - 1;
+        } else {
+          int *key = (int *)malloc(sizeof(int));
+          int *val = (int *)malloc(sizeof(int));
+          *key = rule_key[0];
+          *val = -1;
+          map_insert(number_count, key, val);
+        }
+
+        if (map_contains(number_count, rule_key + 1)) {
+          int *val = map_get(number_count, rule_key + 1);
+          *val = *val + 1;
+        } else {
+          int *key = (int *)malloc(sizeof(int));
+          int *val = (int *)malloc(sizeof(int));
+          *key = rule_key[1];
+          *val = 1;
+          map_insert(number_count, key, val);
+        }
+      }
+    }
+
+    // Now iterate over the number_count map. The number with a value of 0
+    // should be added to the sum.
+    for (int i = 0; i < number_count->list->len; i++) {
+      KeyVal *kv = (KeyVal *)number_count->list->data[i];
+      int val = *((int *)kv->val);
+      int key = *((int *)kv->key);
+      if (val == 0) {
+        sum += key;
+      }
+    }
+
+    // Destroy the rule map and number_count map
+    map_destroy(rule_map);
+    map_destroy(number_count);
+  }
+
+  printf("Sum: %d\n", sum);
+
   //////////////////////// Cleanup ////////////////////////
   for (int i = 0; i < updates->len; i++) {
     List *update_line = (List *)updates->data[i];
@@ -126,10 +291,7 @@ void part1() {
   list_destroy(ordering_rules);
 }
 
-void part2() {}
-
 int main() {
-  part1();
-  part2();
-  exit(0);
+  parts_1_and_2();
+  exit(EXIT_SUCCESS);
 }
