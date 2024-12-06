@@ -1,20 +1,51 @@
 #include "aoc_input.h"
+#include "hashmap.h"
 #include "list.h"
 #include "map.h"
 #include "strings.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-int compare_rules(const void *a, const void *b) {
-  int *arr_a = (int *)a;
-  int *arr_b = (int *)b;
+typedef struct rule_element_struct {
+  int key[2];
+  bool val;
+} RuleElement;
 
-  if (arr_a[0] != arr_b[0]) {
-    return arr_a[0] - arr_b[0];
+typedef struct number_count_element_struct {
+  int key;
+  int val;
+} NumberCountElement;
+
+typedef struct hashmap HashMap;
+
+uint64_t rule_hash(const void *rule, uint64_t seed0, uint64_t seed1) {
+  const RuleElement *r = rule;
+  return hashmap_sip(r->key, sizeof(int) * 2, seed0, seed1);
+}
+
+uint64_t number_count_hash(const void *elem, uint64_t seed0, uint64_t seed1) {
+  const NumberCountElement *nc = elem;
+  return hashmap_sip(&(nc->key), sizeof(int), seed0, seed1);
+}
+
+int rule_compare(const void *a, const void *b, void *other) {
+  const RuleElement *r_a = a;
+  const RuleElement *r_b = b;
+  const int *list_a = r_a->key;
+  const int *list_b = r_b->key;
+  if (list_a[0] != list_b[0]) {
+    return list_a[0] - list_b[0];
   } else {
-    return arr_a[1] - arr_b[1];
+    return list_a[1] - list_b[1];
   }
+}
+
+int number_count_compare(const void *a, const void *b, void *other) {
+  const NumberCountElement *nc_a = a;
+  const NumberCountElement *nc_b = b;
+  return nc_a->key - nc_b->key;
 }
 
 int compare_nums(const void *a, const void *b) {
@@ -136,7 +167,8 @@ void parts_1_and_2() {
     List *update = (List *)updates->data[u];
     // Rules represent edges in a directed graph of numbers in the update. The
     // map stores which edges are in the graph
-    Map *rule_map = map_create(compare_rules);
+    HashMap *rule_hashmap = hashmap_new(sizeof(RuleElement), 0, rand(), rand(),
+                                        rule_hash, rule_compare, NULL, NULL);
 
     // Add edges for all rules where both numbers are in the update
     for (int r = 0; r < ordering_rules->len; r++) {
@@ -168,12 +200,8 @@ void parts_1_and_2() {
       }
 
       // Both are in, so add to the map.
-      int *key = (int *)malloc(sizeof(int) * 2);
-      key[0] = first;
-      key[1] = second;
-      bool *val = (bool *)malloc(sizeof(bool));
-      *val = true;
-      map_insert(rule_map, key, val);
+      hashmap_set(rule_hashmap,
+                  &(RuleElement){.key = {first, second}, .val = true});
     } // end loop over rules
 
     // Use Warshall's Algorithm to compute the transitive closure of the graph
@@ -189,88 +217,105 @@ void parts_1_and_2() {
                             *((int *)update->data[k])};
           int rule_kj[2] = {*((int *)update->data[k]),
                             *((int *)update->data[j])};
-          bool *ij_bool_ptr;
+          bool ij_bool;
           bool ik_bool;
           bool kj_bool;
 
-          if (map_contains(rule_map, rule_ik)) {
-            ik_bool = *((bool *)map_get(rule_map, rule_ik));
+          if (hashmap_get(rule_hashmap,
+                          &(RuleElement){.key = {rule_ik[0], rule_ik[1]}}) !=
+              NULL) {
+            ik_bool = ((RuleElement *)hashmap_get(
+                           rule_hashmap,
+                           &(RuleElement){.key = {rule_ik[0], rule_ik[1]}}))
+                          ->val;
           } else {
             ik_bool = false;
           }
 
-          if (map_contains(rule_map, rule_kj)) {
-            kj_bool = *((bool *)map_get(rule_map, rule_kj));
+          if (hashmap_get(rule_hashmap,
+                          &(RuleElement){.key = {rule_kj[0], rule_kj[1]}}) !=
+              NULL) {
+            kj_bool = ((RuleElement *)hashmap_get(
+                           rule_hashmap,
+                           &(RuleElement){.key = {rule_kj[0], rule_kj[1]}}))
+                          ->val;
           } else {
             kj_bool = false;
           }
 
-          if (map_contains(rule_map, rule_ij)) {
-            ij_bool_ptr = (bool *)map_get(rule_map, rule_ij);
-            *ij_bool_ptr = *ij_bool_ptr || (ik_bool && kj_bool);
-            // Not need to do an insert/update, this updates the bool directly
+          if (hashmap_get(rule_hashmap,
+                          &(RuleElement){.key = {rule_ij[0], rule_ij[1]}}) !=
+              NULL) {
+            ij_bool = ((RuleElement *)hashmap_get(
+                           rule_hashmap,
+                           &(RuleElement){.key = {rule_ij[0], rule_ij[1]}}))
+                          ->val;
           } else {
-            ij_bool_ptr = (bool *)malloc(sizeof(bool));
-            *ij_bool_ptr = ik_bool && kj_bool;
-            int *key = (int *)malloc(sizeof(int) * 2);
-            key[0] = rule_ij[0];
-            key[1] = rule_ij[1];
-            map_insert(rule_map, key, ij_bool_ptr);
+            ij_bool = false;
           }
+
+          hashmap_set(rule_hashmap,
+                      &(RuleElement){.key = {rule_ij[0], rule_ij[1]},
+                                     .val = ij_bool || (ik_bool && kj_bool)});
         }
       }
     } // end Warshall Algorithm loop
 
-    Map *number_count = map_create(compare_nums);
+    HashMap *number_count_hashmap =
+        hashmap_new(sizeof(NumberCountElement), 0, rand(), rand(),
+                    number_count_hash, number_count_compare, NULL, NULL);
 
     // Now create a mapping for each number in the closure of the rules (or
     // equivalently, each number in the update list). Subtract one from its
     // value for being the first number of a rule, and add one for being the
     // last number of a rule.
-    for (int i = 0; i < rule_map->list->len; i++) {
-      KeyVal *rule_keyval = (KeyVal *)rule_map->list->data[i];
-      int *rule_key = (int *)rule_keyval->key;
-      bool *rule_val = (bool *)rule_keyval->val;
+    size_t iter = 0;
+    void *item;
+    while (hashmap_iter(rule_hashmap, &iter, &item)) {
+      const RuleElement *rule_element = item;
+      const int *rule_key = rule_element->key;
+      const bool rule_val = rule_element->val;
 
-      if (*rule_val) {
-        if (map_contains(number_count, rule_key + 0)) {
-          int *val = map_get(number_count, rule_key + 0);
-          *val = *val - 1;
-        } else {
-          int *key = (int *)malloc(sizeof(int));
-          int *val = (int *)malloc(sizeof(int));
-          *key = rule_key[0];
-          *val = -1;
-          map_insert(number_count, key, val);
+      if (rule_val) {
+        int count = 0;
+        if (hashmap_get(number_count_hashmap,
+                        &(NumberCountElement){.key = rule_key[0]}) != NULL) {
+          count = ((NumberCountElement *)hashmap_get(
+                           number_count_hashmap,
+                           &(NumberCountElement){.key = rule_key[0]}))
+                          ->val;
         }
+        hashmap_set(
+            number_count_hashmap,
+            &(NumberCountElement){.key = rule_key[0], .val = count - 1});
 
-        if (map_contains(number_count, rule_key + 1)) {
-          int *val = map_get(number_count, rule_key + 1);
-          *val = *val + 1;
-        } else {
-          int *key = (int *)malloc(sizeof(int));
-          int *val = (int *)malloc(sizeof(int));
-          *key = rule_key[1];
-          *val = 1;
-          map_insert(number_count, key, val);
+        count = 0;
+        if (hashmap_get(number_count_hashmap,
+                        &(NumberCountElement){.key = rule_key[1]}) != NULL) {
+          count = ((NumberCountElement *)hashmap_get(
+                           number_count_hashmap,
+                           &(NumberCountElement){.key = rule_key[1]}))
+                          ->val;
         }
+        hashmap_set(
+            number_count_hashmap,
+            &(NumberCountElement){.key = rule_key[1], .val = count + 1});
       }
     }
 
     // Now iterate over the number_count map. The number with a value of 0
     // should be added to the sum.
-    for (int i = 0; i < number_count->list->len; i++) {
-      KeyVal *kv = (KeyVal *)number_count->list->data[i];
-      int val = *((int *)kv->val);
-      int key = *((int *)kv->key);
-      if (val == 0) {
-        sum += key;
+    iter = 0;
+    while (hashmap_iter(number_count_hashmap, &iter, &item)) {
+      const NumberCountElement *nc_element = item;
+      if (nc_element->val == 0) {
+        sum += nc_element->key;
       }
     }
 
     // Destroy the rule map and number_count map
-    map_destroy(rule_map);
-    map_destroy(number_count);
+    hashmap_free(rule_hashmap);
+    hashmap_free(number_count_hashmap);
   }
 
   printf("Sum: %d\n", sum);
