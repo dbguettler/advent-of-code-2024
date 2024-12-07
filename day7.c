@@ -30,8 +30,9 @@ bool is_solvable_part1(List *equation, long current_val, int last_idx) {
         is_solvable_part1(equation, current_val / last_val, last_idx - 1);
   }
 
-  return multiplication_solvable || (current_val > last_val &&
-         is_solvable_part1(equation, current_val - last_val, last_idx - 1));
+  return multiplication_solvable ||
+         (current_val > last_val &&
+          is_solvable_part1(equation, current_val - last_val, last_idx - 1));
 }
 
 /**
@@ -72,8 +73,9 @@ bool is_solvable_part2(List *equation, long current_val, int last_idx) {
         equation, strtol(current_val_str, endptr, 10), last_idx - 1);
   }
 
-  return multiplication_solvable || concatenation_solvable || (current_val > last_val &&
-         is_solvable_part2(equation, current_val - last_val, last_idx - 1));
+  return multiplication_solvable || concatenation_solvable ||
+         (current_val > last_val &&
+          is_solvable_part2(equation, current_val - last_val, last_idx - 1));
 }
 
 void parts_1_and_2() {
