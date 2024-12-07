@@ -14,7 +14,8 @@
  * use current_val. It will also ignore any operands in the equation with an
  * index greater than last_idx.
  */
-bool is_solvable_part1(List *equation, long current_val, int last_idx) {
+bool is_solvable(List *equation, long current_val, int last_idx,
+                       bool is_part_2) {
   if (last_idx < 1) {
     return false;
   }
@@ -27,55 +28,29 @@ bool is_solvable_part1(List *equation, long current_val, int last_idx) {
   bool multiplication_solvable = false;
   if (current_val % last_val == 0) {
     multiplication_solvable =
-        is_solvable_part1(equation, current_val / last_val, last_idx - 1);
+        is_solvable(equation, current_val / last_val, last_idx - 1, is_part_2);
   }
 
-  return multiplication_solvable ||
-         (current_val > last_val &&
-          is_solvable_part1(equation, current_val - last_val, last_idx - 1));
-}
-
-/**
- * Check if the equation fragment is solvable with multiplication and addition.
- * This function will ignore the first value in the equation and will instead
- * use current_val. It will also ignore any operands in the equation with an
- * index greater than last_idx.
- */
-bool is_solvable_part2(List *equation, long current_val, int last_idx) {
-  if (last_idx < 1) {
-    return false;
-  }
-  if (last_idx == 1) {
-    return current_val == *((long *)equation->data[1]);
+  if (multiplication_solvable) {
+    return true;
   }
 
-  long last_val = *((long *)equation->data[last_idx]);
+  if (is_part_2) {
+    bool concatenation_solvable = false;
+    long unconcatenated = current_val - last_val;
+    int num_digits = (int)log10(last_val) + 1;
+    if (unconcatenated % (int)pow(10, num_digits) == 0) {
+      concatenation_solvable = is_solvable(
+          equation, unconcatenated / (int)pow(10, num_digits), last_idx - 1, is_part_2);
+    }
 
-  bool multiplication_solvable = false;
-  if (current_val % last_val == 0) {
-    multiplication_solvable =
-        is_solvable_part2(equation, current_val / last_val, last_idx - 1);
+    if (concatenation_solvable) {
+      return true;
+    }
   }
 
-  bool concatenation_solvable = false;
-  int chars_needed = (int)log10(current_val) + 2;
-  char current_val_str[chars_needed];
-  sprintf(current_val_str, "%ld", current_val);
-  chars_needed = (int)log10(last_val) + 2;
-  char last_val_str[chars_needed];
-  sprintf(last_val_str, "%ld", last_val);
-  if (strlen(current_val_str) > strlen(last_val_str) &&
-      strcmp(last_val_str, current_val_str + strlen(current_val_str) -
-                               strlen(last_val_str)) == 0) {
-    char **endptr = NULL;
-    current_val_str[strlen(current_val_str) - strlen(last_val_str)] = '\0';
-    concatenation_solvable = is_solvable_part2(
-        equation, strtol(current_val_str, endptr, 10), last_idx - 1);
-  }
-
-  return multiplication_solvable || concatenation_solvable ||
-         (current_val > last_val &&
-          is_solvable_part2(equation, current_val - last_val, last_idx - 1));
+  return current_val > last_val &&
+         is_solvable(equation, current_val - last_val, last_idx - 1, is_part_2);
 }
 
 void parts_1_and_2() {
@@ -110,12 +85,12 @@ void parts_1_and_2() {
   long sum_part_1 = 0;
   long sum_part_2 = 0;
   for (int i = 0; i < num_equations; i++) {
-    if (is_solvable_part1(equations[i], *((long *)equations[i]->data[0]),
-                          equations[i]->len - 1)) {
+    if (is_solvable(equations[i], *((long *)equations[i]->data[0]),
+                          equations[i]->len - 1, false)) {
       sum_part_1 += *((long *)equations[i]->data[0]);
     }
-    if (is_solvable_part2(equations[i], *((long *)equations[i]->data[0]),
-                          equations[i]->len - 1)) {
+    if (is_solvable(equations[i], *((long *)equations[i]->data[0]),
+                          equations[i]->len - 1, true)) {
       sum_part_2 += *((long *)equations[i]->data[0]);
     }
   }
@@ -134,5 +109,5 @@ void parts_1_and_2() {
 
 int main() {
   parts_1_and_2();
-  exit(0);
+  exit(EXIT_SUCCESS);
 }
