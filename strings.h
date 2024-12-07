@@ -10,6 +10,6 @@ char * str_append_char(char * str, char ch);
 
 bool str_starts_with(char * haystack, char * needle);
 
-List * str_split(char * str, char * splitter);
+List * str_split(char * str, char * splitters);
 
 #endif

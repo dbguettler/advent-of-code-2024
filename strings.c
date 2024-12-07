@@ -38,16 +38,16 @@ bool str_starts_with(char * haystack, char * needle) {
 	return true;
 }
 
-List * str_split(char * str, char * splitter) {
+List * str_split(char * str, char * splitters) {
   List * l = list_create();
 
-  char * token = strtok(str, splitter);
+  char * token = strtok(str, splitters);
 
   while (token != NULL) {
     char * list_item = (char *) malloc(sizeof(char) * strlen(token) + 1);
     strcpy(list_item, token);
     list_append(l, list_item);
-    token = strtok(NULL, splitter);
+    token = strtok(NULL, splitters);
   }
 
   return l;
