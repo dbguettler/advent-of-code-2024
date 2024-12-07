@@ -50,3 +50,4 @@ aoc_input.o: aoc_input.c aoc_input.h
 clean:
 	rm -f *.o
 	rm -f day1 day2 day3 day4 day5 day6 day7
+	rm -f vgcore.*
